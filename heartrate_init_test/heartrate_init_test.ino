@@ -1,17 +1,17 @@
 #include "TimerOne.h"
    
-const int LED = 13;
-const int beatLED = 12;
-const int HeartSensor = A0;
-const int beatThreshold = 550;
+const int LED = 13;        //OnBoard LED
+const int beatLED = 2;    //3mm LED to pulse with heart
+const int HeartSensor = A0; //Sensor input
+const int beatThreshold = 550; //Threshold to decide puls
 
-double Period = .01; //Seconds
-int Flag = 0;
+double Period = .1; //One loop runs every 0.1 seconds
+int loopFlag = 0;
 double t = 0;
 int numBeats;
 int Rate = 0;
-int output[255] = {0};
-uint8_t sampleCounter = 0;
+int raw_out[255] = {0};
+int sample_index = 0;
     
 
 void setup()
@@ -28,52 +28,47 @@ void setup()
 void callback()
 {
   digitalWrite(LED, digitalRead(13) ^ 1);
-  Flag = 1;
+  loopFlag = 1;
   t = t + Period;
-  sampleCounter ++;
+  sample_index ++;
  
 }
 
 void loop()
 {
-  while (Flag == 1) //Run through this loop every (Period) seconds 
+  while (loopFlag == 1) //Run through this loop every (Period) seconds 
   {
-    //Serial.println(sampleCounter);
-    output[sampleCounter] = analogRead(HeartSensor); //Read the sensorer
-   // Serial.println(output[sampleCounter]);
-    if (output[sampleCounter] > beatThreshold)
+    raw_out[sample_index] = analogRead(HeartSensor); //Read the sensorer
+    if (raw_out[sample_index] > beatThreshold && raw_out[sample_index-1] < beatThreshold)
     { 
       digitalWrite(beatLED, HIGH);
     }
-    else 
+    else if (raw_out[sample_index] < beatThreshold && raw_out[sample_index-1] > beatThreshold)
     {
       digitalWrite(beatLED, LOW);
     }
     
-    if (sampleCounter > 100)
+    if (sample_index > 100)
     {
-      //int i = sampleCounter;
-      //Serial.println(i);
-      for(int i = sampleCounter-100; i < (sampleCounter-1); i++)
+      for(int i = sample_index-100; i < (sample_index-1); i++)
       {
-       if (output[i] > beatThreshold && output[i-1] < beatThreshold && output[i-2] < beatThreshold && output[i-3] < beatThreshold )     {
+       if (raw_out[i] > beatThreshold && raw_out[i-1] < beatThreshold && raw_out[i-2] < beatThreshold && raw_out[i-3] < beatThreshold )   
+       {
         numBeats++;
        } 
       }
       Rate = numBeats * 6;
-      if (Rate > 200 || Rate < 30)
-      {
-        Serial.println("Invalid Heart Rate");
-      }
-      else
+      if (Rate < 200 && Rate > 30)
       {
         Serial.print(Rate); Serial.println(" Bpm");
       }
+      else
+      {
+        Serial.println("Invalid Heart Rate");
+      }
        numBeats = 0;
     }
-    if (t > 10)
-    {
-      //while(1);
-    }
+
+    loopFlag = 0;
   }
 }
