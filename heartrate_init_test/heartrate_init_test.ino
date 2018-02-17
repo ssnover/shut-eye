@@ -1,17 +1,18 @@
-
-#define USE_ARDUINO_INTERRUPTS true    // Set-up low-level interrupts for most acurate BPM math.
 #include "TimerOne.h"
-#include <PulseSensorPlayground.h>    // Includes the PulseSensorPlayground Library.   
-
+   
 const int LED = 13;
+const int beatLED = 12;
+const int HeartSensor = A0;
+const int beatThreshold = 550;
+
 double Period = .01; //Seconds
-auto Flag = 0;
-
-const int HeartSensor = A0;       // PulseSensor PURPLE WIRE connected to ANALOG PIN 0
-const int beatLED = 12;          // The on-board Arduino LED, close to PIN 13.
-int beatThreshold = 200;           // Determine which Signal to "count as a beat" and which to ignore.
-
-//PulseSensorPlayground pulseSensor;  // Creates an instance of the PulseSensorPlayground object called "pulseSensor"
+int Flag = 0;
+double t = 0;
+int numBeats;
+int Rate = 0;
+int output[255] = {0};
+uint8_t sampleCounter = 0;
+    
 
 void setup()
 {
@@ -21,17 +22,6 @@ void setup()
   Timer1.attachInterrupt(callback);           // attaches callback() as a timer overflow interrupt
   Serial.begin(9600);
   Serial.println("Timer Begin");
-
-  /* Configure the PulseSensor object, by assigning our variables to it. 
-  pulseSensor.analogInput(HeartSensor);   
-  pulseSensor.blinkOnPulse(beatLED);       //auto-magically blink Arduino's LED with heartbeat.
-  pulseSensor.setThreshold(beatThreshold);   
-
-  if (pulseSensor.begin())
-  {
-    Serial.println("We created a pulseSensor Object !");  //This prints one time at Arduino power-up,  or on Arduino reset.  
-  }*/
-
   pinMode(HeartSensor, INPUT);
 }
 
@@ -39,23 +29,51 @@ void callback()
 {
   digitalWrite(LED, digitalRead(13) ^ 1);
   Flag = 1;
+  t = t + Period;
+  sampleCounter ++;
+ 
 }
 
 void loop()
 {
-  while (Flag == 1)
+  while (Flag == 1) //Run through this loop every (Period) seconds 
   {
-    //digitalWrite(beatLED, digitalRead(12) ^ 1);
-    int output = analogRead(HeartSensor);
-    if (output >= 550)
-    {
+    //Serial.println(sampleCounter);
+    output[sampleCounter] = analogRead(HeartSensor); //Read the sensorer
+   // Serial.println(output[sampleCounter]);
+    if (output[sampleCounter] > beatThreshold)
+    { 
       digitalWrite(beatLED, HIGH);
     }
     else 
     {
       digitalWrite(beatLED, LOW);
     }
-    Serial.println(output);
-    Flag = 0;
+    
+    if (sampleCounter > 100)
+    {
+      //int i = sampleCounter;
+      //Serial.println(i);
+      for(int i = sampleCounter-100; i < (sampleCounter-1); i++)
+      {
+       if (output[i] > beatThreshold && output[i-1] < beatThreshold && output[i-2] < beatThreshold && output[i-3] < beatThreshold )     {
+        numBeats++;
+       } 
+      }
+      Rate = numBeats * 6;
+      if (Rate > 200 || Rate < 30)
+      {
+        Serial.println("Invalid Heart Rate");
+      }
+      else
+      {
+        Serial.print(Rate); Serial.println(" Bpm");
+      }
+       numBeats = 0;
+    }
+    if (t > 10)
+    {
+      //while(1);
+    }
   }
 }
